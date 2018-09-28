@@ -50,6 +50,5 @@ def test_RvNN():
     # batch_size
     model.init(100, 2, 1000)
 
-
 if __name__ == "__main__":
     test_RvNN()
