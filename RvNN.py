@@ -1,7 +1,18 @@
 import tensorflow as tf
 import numpy as np
 
-class RvNN():
+
+class TreeNode:
+    def __init__(self, embbeding):
+        self.index = -1
+        self.emb = embbeding  # the embedding of the predicate
+        self.parent = None
+        self.left = None
+        self.right = None
+        self.isLeaf = False
+
+
+class RvNN:
     def __int__(self):
         self.dimension = 0
         self.rule_length = 0
@@ -12,7 +23,20 @@ class RvNN():
         self.rule_length = rule_length
         self.training_iteration = training_iteration
 
-    def add_layer(self, input, activation_function=None):
+    # not finished!!!!!!!!!!!!!!!!!!!!!!
+    def load_data(self):
+        self.train_data = 0
+        self.test_data = 0
+
+    def add_layer(self, node, activation_function=None):
+
+        # define the placeholder for inputs to network
+        x_c1 = tf.placeholder(tf.float32, [None, self.dimension])
+        x_c2 = tf.placeholder(tf.float32, [None, self.dimension])
+        x = tf.concat([x_c1, x_c2], 0)
+
+        # if node.isLeaf:
+
         regularizion = tf.contrib.layers.l2_regularizer(0.0001)  # L2 regularizion
         with tf.variable_scope('Composition', initializer=tf.random_normal_initializer,
                                regularizer=regularizion):
@@ -25,24 +49,36 @@ class RvNN():
             output = activation_function(Wx_plus_b)
         return output
 
-    def run(self):
-        # define the placeholder for inputs to network
-        x_c1 = tf.placeholder(tf.float32, [None, self.dimension])
-        x_c2 = tf.placeholder(tf.float32, [None, self.dimension])
-        x = tf.concat([x_c1, x_c2], 0)
+    def run_iter(self):
+        for i in range(len(self.train_data)):
+            sess = tf.Session()
+            init_op = tf.global_variables_initializer()
+            sess.run(init_op)
+
+            # every sample go in to train
+            self.train_data[i]
+            pass
+
+
+    def train(self):
+        self.load_data()
+
+        # 要有一个数据结构装这棵树
+        embedding = 0  # wait to change!!
+        node = TreeNode(embedding)
 
         # add hidden layer with the length of rule
-        for i in range(self.rule_length-1):
-            layer = self.add_layer(x, tf.tanh)
+        for i in range(self.rule_length-1):  # 调用几次这个函数？计算复合的
+            layer = self.add_layer(node, tf.tanh)   # tf.sigmoid 待定
+
         loss = 0  # how to calculate?
         train_step = tf.train.AdagradOptimizer(0.1).minimize(loss)  # learning rate could be halved?
-        init_op = tf.global_variables_initializer()
 
-        sess = tf.Session()
-        sess.run(init_op)
-        for i in range(self.training_iteration):
-            # batch to train
+
+        for iter in range(self.training_iteration):
+            self.run_iter()
             pass
+
 
 def test_RvNN():
     model = RvNN()
