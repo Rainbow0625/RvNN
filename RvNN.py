@@ -24,9 +24,9 @@ class RvNN(object):
         self.test_data = []
 
     def add_layer(self, x_c1, x_c2, activation_function=tf.tanh):  # tf.sigmoid 待定
-        regularizion = tf.contrib.layers.l2_regularizer(0.0001)  # L2 regularizion
+        regularization = tf.contrib.layers.l2_regularizer(0.0001)  # L2 regularizion
         with tf.variable_scope('Composition', initializer=tf.random_normal_initializer,
-                               regularizer=regularizion):
+                               regularizer=regularization):
             weight = tf.get_variable('weight', shape=[self.dimension, self.dimension * 2])
             bias = tf.get_variable('bias', shape=[self.dimension, 1])
         # define the placeholder for inputs to network
@@ -40,8 +40,6 @@ class RvNN(object):
             output = activation_function(Wx_plus_b)
         return output
 
-    # 输入参数，输出一个装好embedding的list
-    # not finished!!!!!!!!!!!!!!!!!!!!!!
     def parse_to_tree(self, tokens):
         input_list = [item for item in tokens]
         node_list = []
@@ -68,11 +66,15 @@ class RvNN(object):
             node_list[i+2].parent = p_parent
             p_parent.emb = self.add_layer(p.emb, node_list[i+2].emb)
             p = p_parent
-        return p_parent
+        return p
 
-    # not finished!!!!!!!!!!!!!!!!!!!!!!
     def loss(self, output, y):
-        loss = 0
+        with tf.variable_scope('Composition', reuse=True):
+            weight = tf.get_variable("weight")
+        # L2 Regularization + Mean Squared Error
+        mse = tf.reduce_sum(tf.square(y - output))
+        # mse = tf.losses.mean_squared_error(y, output)
+        loss = tf.nn.l2_loss(weight) + mse
         return loss
 
     def run_iter(self, verbose=True):
