@@ -3,22 +3,17 @@ import numpy as np
 
 
 class TreeNode:
-    def __init__(self, embbeding):
+    def __init__(self):
         self.index = -1
-        self.emb = embbeding  # the embedding of the predicate
+        self.emb = None  # the embedding of the predicate
         self.parent = None
         self.left = None
         self.right = None
         self.isLeaf = False
 
 
-class RvNN:
-    def __int__(self):
-        self.dimension = 0
-        self.rule_length = 0
-        self.training_iteration = 0
-
-    def init(self, dim, rule_length, training_iteration):
+class RvNN(object):
+    def __int__(self, dim, rule_length, training_iteration):
         self.dimension = dim
         self.rule_length = rule_length
         self.training_iteration = training_iteration
@@ -26,34 +21,54 @@ class RvNN:
     # not finished!!!!!!!!!!!!!!!!!!!!!!
     def load_data(self):
         self.train_data = []
-        self.test_data = 0
+        self.test_data = []
 
-    # 输入参数，输出一整颗组装好的树结构的root节点
+    def add_layer(self, x_c1, x_c2, activation_function=tf.tanh):  # tf.sigmoid 待定
+        regularizion = tf.contrib.layers.l2_regularizer(0.0001)  # L2 regularizion
+        with tf.variable_scope('Composition', initializer=tf.random_normal_initializer,
+                               regularizer=regularizion):
+            weight = tf.get_variable('weight', shape=[self.dimension, self.dimension * 2])
+            bias = tf.get_variable('bias', shape=[self.dimension, 1])
+        # define the placeholder for inputs to network
+        # x_c1 = tf.placeholder(tf.float32, [None, self.dimension])
+        # x_c2 = tf.placeholder(tf.float32, [None, self.dimension])
+        x = tf.concat([x_c1, x_c2], 0)
+        Wx_plus_b = tf.matmul(weight, x) + bias
+        if activation_function is None:
+            output = Wx_plus_b
+        else:
+            output = activation_function(Wx_plus_b)
+        return output
+
+    # 输入参数，输出一个装好embedding的list
     # not finished!!!!!!!!!!!!!!!!!!!!!!
-    def parse(self, data):
-        root = TreeNode(data)  # data includes embedding
-        return root
-
-    def add_layers(self, node, activation_function=tf.tanh):  # tf.sigmoid 待定
-        if not node.isLeaf:
-            self.add_layers(node.left)
-
-            # define the placeholder for inputs to network
-            x_c1 = tf.placeholder(tf.float32, [None, self.dimension])
-            x_c2 = tf.placeholder(tf.float32, [None, self.dimension])
-            x = tf.concat([x_c1, x_c2], 0)
-
-            regularizion = tf.contrib.layers.l2_regularizer(0.0001)  # L2 regularizion
-            with tf.variable_scope('Composition', initializer=tf.random_normal_initializer,
-                                   regularizer=regularizion):
-                weight = tf.get_variable('weight', shape=[self.dimension, self.dimension * 2])
-                bias = tf.get_variable('bias', shape=[self.dimension, 1])
-            Wx_plus_b = tf.matmul(weight, x) + bias
-            if activation_function is None:
-                output = Wx_plus_b
-            else:
-                output = activation_function(Wx_plus_b)
-            return output
+    def parse_to_tree(self, tokens):
+        input_list = [item for item in tokens]
+        node_list = []
+        for p in input_list:
+            # p[0]: index   p[1]: embedding
+            node = TreeNode()  # data includes embedding
+            node.index = p[0]
+            node.emb = p[1]
+            node.isLeaf = True
+            node_list.append(node)
+        p = TreeNode()
+        p.isLeaf = False
+        p.left = node_list[0]
+        node_list[0].parent = p
+        p.right = node_list[1]
+        node_list[1].parent = p
+        p.emb = self.add_layer(node_list[0].emb, node_list[1].emb)
+        for i in range(self.rule_length-1):
+            p_parent = TreeNode()
+            p_parent.isLeaf = False
+            p_parent.left = p
+            p.parent = p_parent
+            p_parent.right = node_list[i+2]
+            node_list[i+2].parent = p_parent
+            p_parent.emb = self.add_layer(p.emb, node_list[i+2].emb)
+            p = p_parent
+        return p_parent
 
     # not finished!!!!!!!!!!!!!!!!!!!!!!
     def loss(self, output, y):
@@ -63,41 +78,37 @@ class RvNN:
     def run_iter(self, verbose=True):
         loss_history = []
         for i in range(len(self.train_data)):
+            # print("")
             sess = tf.Session()
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
-
             # every sample go in to train
-            node = self.parse(self.train_data[i])
-
-            # add hidden layer with the length of rule
-            # for i in range(self.rule_length - 1):  # 调用几次这个函数？计算复合的
-            output = self.add_layers(node)
-
+            root_node = self.parse_to_tree(self.train_data[i])
+            # minimize the loss
+            output = root_node.emb
             y = 0  # where is the "y" from?!!!!!!!!!!!!
             loss = self.loss(output, y)  # how to calculate?!!!!!!!!!!!!
             train_step = tf.train.AdagradOptimizer(0.1).minimize(loss)  # learning rate could be halved?
             loss, _ = sess.run([loss, train_step])
             loss_history.append(loss)
             if verbose:
-                print("Train step: %d / %d, mean loss: %s" % (i, len(self.train_data), np.mean(loss_history)))
-            pass
-
+                print("   Train step: %d / %d, mean loss: %s" % (i, len(self.train_data), np.mean(loss_history)))
 
     def train(self):
         self.load_data()
-
+        print("Training begins.")
         for iter in range(self.training_iteration):
             # every iteration is for all data
+            print(" Iteration %d: \n" % iter)
             self.run_iter()
-            pass
+        print("Training ends.")
 
 
 def test_RvNN():
     model = RvNN()
+    model.__int__(100, 2, 1000)
     # init(self, dim, rule_length, training_iteration)
     # batch_size
-    model.init(100, 2, 1000)
 
 
 if __name__ == "__main__":
