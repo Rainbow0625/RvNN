@@ -13,10 +13,13 @@ class TreeNode:
 
 
 class RvNN(object):
-    def __int__(self, dim, rule_length, training_iteration):
+    def __int__(self, dim, rule_length, training_iteration, learning_rate, l2):
         self.dimension = dim
         self.rule_length = rule_length
         self.training_iteration = training_iteration
+        self.learning_rate = learning_rate
+        self.l2 = l2
+        self.model_name = 'rnn_embed=%d_l2=%f_lr=%f.weights' % (dim, l2, learning_rate)
 
     # not finished!!!!!!!!!!!!!!!!!!!!!!
     def load_data(self):
@@ -74,13 +77,14 @@ class RvNN(object):
         # L2 Regularization + Mean Squared Error
         mse = tf.reduce_sum(tf.square(y - output))
         # mse = tf.losses.mean_squared_error(y, output)
-        loss = tf.nn.l2_loss(weight) + mse
+        loss = tf.nn.l2_loss(weight) * self.l2 + mse
         return loss
 
     def run_iter(self, verbose=True):
         loss_history = []
         for i in range(len(self.train_data)):
             # print("")
+            # new model???????
             sess = tf.Session()
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
@@ -90,14 +94,13 @@ class RvNN(object):
             output = root_node.emb
             y = 0  # where is the "y" from?!!!!!!!!!!!!
             loss = self.loss(output, y)  # how to calculate?!!!!!!!!!!!!
-            train_step = tf.train.AdagradOptimizer(0.1).minimize(loss)  # learning rate could be halved?
+            train_step = tf.train.AdagradOptimizer(self.learning_rate).minimize(loss)  # learning rate could be halved?
             loss, _ = sess.run([loss, train_step])
             loss_history.append(loss)
             if verbose:
                 print("   Train step: %d / %d, mean loss: %s" % (i, len(self.train_data), np.mean(loss_history)))
 
     def train(self):
-        self.load_data()
         print("Training begins.")
         for iter in range(self.training_iteration):
             # every iteration is for all data
@@ -105,12 +108,24 @@ class RvNN(object):
             self.run_iter()
         print("Training ends.")
 
+    # not finished!!!!!!!!!!!!!!!!!!!!!!
+    def predict(self):
+        print("Testing begins.")
+
+        print("Testing ends.")
+
 
 def test_RvNN():
+    Dimension = 100  # 50 in paper
+    Rule_Length = 2
+    Training_Iteration = 100
+    Learning_Rate = 0.1
+    L2 = 0.0001
+
     model = RvNN()
-    model.__int__(100, 2, 1000)
-    # init(self, dim, rule_length, training_iteration)
-    # batch_size
+    model.__int__(Dimension, Rule_Length, Training_Iteration, Learning_Rate, L2)
+    model.load_data()
+    model.train()
 
 
 if __name__ == "__main__":
