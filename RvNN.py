@@ -80,39 +80,61 @@ class RvNN(object):
         loss = tf.nn.l2_loss(weight) * self.l2 + mse
         return loss
 
-    def run_iter(self, verbose=True):
+    # not finished!!!!!!!!!!!!!!!!!!!!!!
+    def predict(self, data):
+        results = []
+        with tf.Graph().as_default(), tf.Session() as sess:
+            for i in range(len(data)):
+                saver = tf.train.Saver()
+                saver.restore(sess, './weights/%s.temp' % self.model_name)
+                root_node = self.parse_to_tree((data[i]))
+                y = 0  # where is the "y" from?!!!!!!!!!!!!
+                root_node = sess.run(root_node)
+                prediction = root_node.emb
+                results.append(prediction)
+        # how to calculate the accuracy!!!!!!!!! results compare to y?
+        accuracy = 0.0
+        return accuracy
+
+    def run_iter(self, new_model = False, verbose=True):
         loss_history = []
-        for i in range(len(self.train_data)):
-            # print("")
-            # new model???????
-            sess = tf.Session()
-            init_op = tf.global_variables_initializer()
-            sess.run(init_op)
-            # every sample go in to train
-            root_node = self.parse_to_tree(self.train_data[i])
-            # minimize the loss
-            output = root_node.emb
-            y = 0  # where is the "y" from?!!!!!!!!!!!!
-            loss = self.loss(output, y)  # how to calculate?!!!!!!!!!!!!
-            train_step = tf.train.AdagradOptimizer(self.learning_rate).minimize(loss)  # learning rate could be halved?
-            loss, _ = sess.run([loss, train_step])
-            loss_history.append(loss)
-            if verbose:
-                print("   Train step: %d / %d, mean loss: %s" % (i, len(self.train_data), np.mean(loss_history)))
+        with tf.Graph().as_default(), tf.Session() as sess:
+            for i in range(len(self.train_data)):
+                if new_model:
+                    init_op = tf.global_variables_initializer()
+                    sess.run(init_op)
+                else:
+                    saver = tf.train.Saver()
+                    saver.restore(sess, './weights/%s.temp' % self.model_name)
+                # every sample go in to train
+                root_node = self.parse_to_tree(self.train_data[i])
+                # minimize the loss
+                output = root_node.emb
+                y = 0  # where is the "y" from?!!!!!!!!!!!!
+                loss = self.loss(output, y)
+                # learning rate could be halved?
+                train_step = tf.train.AdagradOptimizer(self.learning_rate).minimize(loss)
+                loss, _ = sess.run([loss, train_step])
+                loss_history.append(loss)
+                if verbose:
+                    print("   Train step: %d / %d, mean loss: %s" % (i, len(self.train_data), np.mean(loss_history)))
+            saver = tf.train.Saver()
+            saver.save(sess, './weights/%s.temp' % self.model_name)
+        # after training stage, we should see the train result of the model
+        train_accuracy = self.predict(self.train_data)
+        print("   accuracy: %f" % train_accuracy)
+        return train_accuracy
 
     def train(self):
         print("Training begins.")
-        for iter in range(self.training_iteration):
+        for step in range(self.training_iteration):
             # every iteration is for all data
-            print(" Iteration %d: \n" % iter)
-            self.run_iter()
+            print(" Iteration %d: \n" % step)
+            if iter == 0:
+                train_accuracy = self.run_iter(new_model=True)
+            else:
+                train_accuracy = self.run_iter()
         print("Training ends.")
-
-    # not finished!!!!!!!!!!!!!!!!!!!!!!
-    def predict(self):
-        print("Testing begins.")
-
-        print("Testing ends.")
 
 
 def test_RvNN():
